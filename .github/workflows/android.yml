@@ -1,0 +1,66 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Android project files
+        run: flutter create . --platforms=android --org com.locintel.dumiya --project-name dumiya_livreur_app
+
+      - name: Ensure Android internet permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text(encoding='utf-8')
+          perm1 = '<uses-permission android:name="android.permission.INTERNET"/>'
+          perm2 = '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+          if perm1 not in text:
+              text = text.replace('<application', perm1 + '
+    ' + perm2 + '
+
+    <application', 1)
+          elif perm2 not in text:
+              text = text.replace(perm1, perm1 + '
+    ' + perm2, 1)
+          manifest.write_text(text, encoding='utf-8')
+          print(manifest.read_text(encoding='utf-8'))
+          PY
+
+      - name: Get dependencies again
+        run: flutter pub get
+
+      - name: Build APK release
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dumiya-livreur-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
