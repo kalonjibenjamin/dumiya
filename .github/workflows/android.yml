@@ -1,0 +1,46 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Android project files
+        run: flutter create . --platforms=android --org com.locintel.dumiya --project-name dumiya_livreur_app
+
+      - name: Get dependencies again
+        run: flutter pub get
+
+      - name: Build APK release
+        run: flutter build apk --release --dart-define=DUMIYA_BASE_URL=${{ vars.DUMIYA_BASE_URL || 'https://microfinance-rdc.online' }} --dart-define=DUMIYA_DB=${{ vars.DUMIYA_DB || 'finance' }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dumiya-livreur-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
